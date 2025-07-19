@@ -9,7 +9,7 @@ export const validateDiscountCode = (req: Request, res: Response) => {
     return res.json({ valid: false, message: '請輸入折扣碼' });
   }
   
-  const db = new Database('./reservations.db');
+  const db = new Database('./data/snow_reservation.db');
   
   const query = `
     SELECT * FROM discount_codes 
@@ -56,7 +56,7 @@ export const applyDiscount = (req: Request, res: Response) => {
     });
   }
   
-  const db = new Database('./reservations.db');
+  const db = new Database('./data/snow_reservation.db');
   
   const query = `
     SELECT * FROM discount_codes 
@@ -110,7 +110,7 @@ export const recordDiscountUsage = (
   finalAmount: number
 ) => {
   return new Promise<void>((resolve, reject) => {
-    const db = new Database('./reservations.db');
+    const db = new Database('./data/snow_reservation.db');
     
     // 先取得折扣碼ID
     db.get(
