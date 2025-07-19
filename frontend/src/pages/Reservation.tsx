@@ -245,10 +245,18 @@ const Reservation: React.FC = () => {
   const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [reservationResponse, setReservationResponse] = useState<any>(null);
-  const [discountStatus, setDiscountStatus] = useState(null);
+  const [discountStatus, setDiscountStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [originalPrice, setOriginalPrice] = useState(0);
-  const [discountInfo, setDiscountInfo] = useState(null);
+  const [discountInfo, setDiscountInfo] = useState<{
+    valid: boolean;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+    name?: string;
+  } | null>(null);
 
   // 初始化時從 localStorage 恢復數據
   useEffect(() => {
@@ -331,7 +339,7 @@ const Reservation: React.FC = () => {
   };
 
   // 折扣碼驗證函數
-  const validateDiscountCode = async (code) => {
+  const validateDiscountCode = async (code: string) => {
     if (!code) {
       setDiscountStatus(null);
       setDiscountAmount(0);
