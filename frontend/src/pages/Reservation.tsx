@@ -245,6 +245,10 @@ const Reservation: React.FC = () => {
   const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [reservationResponse, setReservationResponse] = useState<any>(null);
+  const [discountStatus, setDiscountStatus] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [originalPrice, setOriginalPrice] = useState(0);
+  const [discountInfo, setDiscountInfo] = useState(null);
 
   // 初始化時從 localStorage 恢復數據
   useEffect(() => {
@@ -271,6 +275,7 @@ const Reservation: React.FC = () => {
           hotel: '',
           shuttle: [],
           shuttleMode: 'none',
+          discountCode: '',
         });
       } catch (e) {
         console.error('Failed to restore form data:', e);
@@ -323,6 +328,52 @@ const Reservation: React.FC = () => {
       }
     }
     return '';
+  };
+
+  // 折扣碼驗證函數
+  const validateDiscountCode = async (code) => {
+    if (!code) {
+      setDiscountStatus(null);
+      setDiscountAmount(0);
+      setDiscountInfo(null);
+      return;
+    }
+    
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/discount/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.valid) {
+        setDiscountStatus({
+          type: 'success',
+          message: `✅ 折扣碼有效！${result.discountType === 'percentage' ? 
+            `享有 ${result.discountValue}% 折扣` : 
+            `減免 ¥${result.discountValue}`}`
+        });
+        setDiscountInfo(result);
+      } else {
+        setDiscountStatus({
+          type: 'error',
+          message: '❌ 折扣碼無效或已過期'
+        });
+        setDiscountAmount(0);
+        setDiscountInfo(null);
+      }
+    } catch (error) {
+      setDiscountStatus({
+        type: 'error',
+        message: '❌ 驗證失敗，請稍後再試'
+      });
+      setDiscountAmount(0);
+      setDiscountInfo(null);
+    }
   };
 
   // 價格計算主邏輯
@@ -402,7 +453,24 @@ const Reservation: React.FC = () => {
         ...p,
       });
     });
-    setPrice(total);
+    // 在 setPrice(total); 之前加入
+    setOriginalPrice(total);
+
+    // 計算折扣
+    if (discountInfo && discountInfo.valid) {
+      let discount = 0;
+      if (discountInfo.discountType === 'percentage') {
+        discount = Math.round(total * (discountInfo.discountValue / 100));
+      } else {
+        discount = Math.min(discountInfo.discountValue, total);
+      }
+      setDiscountAmount(discount);
+      setPrice(total - discount);
+    } else {
+      setDiscountAmount(0);
+      setPrice(total);
+    }
+    
     setDetail(detailList);
   };
 
@@ -520,6 +588,7 @@ const Reservation: React.FC = () => {
     hotel: string;
     shuttle: string[];
     shuttleMode: 'none' | 'need';
+    discountCode: string;
   }>(
     {
       name: '',
@@ -531,6 +600,7 @@ const Reservation: React.FC = () => {
       hotel: '',
       shuttle: [],
       shuttleMode: 'none',
+      discountCode: '',
     }
   );
 
@@ -667,6 +737,27 @@ const Reservation: React.FC = () => {
               </div>
               <input className="input" placeholder="住宿飯店名稱或地址" value={applicant.hotel} onChange={e => setApplicant({ ...applicant, hotel: e.target.value })} required />
               <div>
+                <input 
+                  className="input" 
+                  placeholder="教練合作折扣碼 (選填)" 
+                  value={applicant.discountCode} 
+                  onChange={e => {
+                    setApplicant({ ...applicant, discountCode: e.target.value });
+                    // 當用戶輸入時自動驗證
+                    validateDiscountCode(e.target.value);
+                  }} 
+                />
+                {discountStatus && (
+                  <div className={`mt-2 p-2 rounded text-sm ${
+                    discountStatus.type === 'success' 
+                      ? 'bg-green-50 text-green-700 border border-green-200' 
+                      : 'bg-red-50 text-red-700 border border-red-200'
+                  }`}>
+                    {discountStatus.message}
+                  </div>
+                )}
+              </div>
+              <div>
                 <label className="block mb-1">是否需要接送</label>
                 <div className="flex gap-4 mb-2">
                   <label className="flex items-center gap-1">
@@ -788,7 +879,24 @@ const Reservation: React.FC = () => {
                 <div className="mb-2">租借地點：{rentStore}</div>
                 <div className="mb-2">歸還地點：{returnStore}</div>
                 <div className="mb-2">人數：{people}</div>
-                <div className="mb-2">總價：<span className="text-primary-600 font-bold">¥ {price}</span></div>
+                <div className="mb-4 bg-blue-50 p-4 rounded-lg">
+                  <div className="text-lg font-semibold mb-2">費用明細</div>
+                  {discountAmount > 0 ? (
+                    <>
+                      <div className="mb-1">原價：¥{originalPrice}</div>
+                      <div className="mb-1 text-green-600">
+                        折扣碼 ({applicant.discountCode})：-¥{discountAmount}
+                      </div>
+                      <div className="text-xl font-bold text-primary-600">
+                        總價：¥{price}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xl font-bold text-primary-600">
+                      總價：¥{price}
+                    </div>
+                  )}
+                </div>
               </div>
               {/* 預覽頁面顯示申請人資料 */}
               <div className="mb-6">
