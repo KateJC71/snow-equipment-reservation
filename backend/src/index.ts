@@ -29,13 +29,18 @@ const PORT = process.env.PORT || 3001;
 
 // 中間件
 app.use(helmet());
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://snow-equipment-reservation-frontend-69ejvtmju.vercel.app'
+];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://snow-equipment-reservation-frontend-69ejvtmju.vercel.app',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
-  credentials: true
+  origin: allowedOrigins
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
