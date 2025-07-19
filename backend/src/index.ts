@@ -33,7 +33,8 @@ app.use(helmet());
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://snow-equipment-reservation-frontend-69ejvtmju.vercel.app'
+  'https://snow-equipment-reservation-frontend-69ejvtmju.vercel.app',
+  'https://snow-equipment-reservation-frontend.vercel.app'  // 新增這行
 ];
 
 if (process.env.FRONTEND_URL) {
