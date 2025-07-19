@@ -184,19 +184,9 @@ async function initDatabase() {
             console.log('⚠️  無法修改 user_id 約束，但插入 NULL 值仍可正常運作');
           }
         });
-      });
 
-      // 插入示例數據
-      db.run(insertSampleEquipment, (err) => {
-        if (err) {
-          console.error('插入示例數據失敗:', err);
-          reject(err);
-          return;
-        }
-        console.log('✅ 示例雪具數據插入成功');
-        
-        // 建立折扣碼表格
-        db.exec(`
+        // 在所有 ALTER TABLE 完成後，加入折扣碼表格建立
+        db.run(`
           CREATE TABLE IF NOT EXISTS discount_codes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code TEXT UNIQUE NOT NULL,
@@ -210,10 +200,15 @@ async function initDatabase() {
             active BOOLEAN DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
-        `);
+        `, (err) => {
+          if (err) {
+            console.error('創建折扣碼表失敗:', err);
+          } else {
+            console.log('✅ 折扣碼表創建成功');
+          }
+        });
 
-        // 建立預約折扣記錄表
-        db.exec(`
+        db.run(`
           CREATE TABLE IF NOT EXISTS reservation_discounts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             reservation_id INTEGER,
@@ -225,19 +220,39 @@ async function initDatabase() {
             FOREIGN KEY (reservation_id) REFERENCES reservations(id),
             FOREIGN KEY (discount_code_id) REFERENCES discount_codes(id)
           )
-        `);
+        `, (err) => {
+          if (err) {
+            console.error('創建預約折扣記錄表失敗:', err);
+          } else {
+            console.log('✅ 預約折扣記錄表創建成功');
+          }
+        });
+      });
 
-        // 插入你的自訂折扣碼
-        db.exec(`
+      // 插入示例數據
+      db.run(insertSampleEquipment, (err) => {
+        if (err) {
+          console.error('插入示例數據失敗:', err);
+          reject(err);
+          return;
+        }
+        console.log('✅ 示例雪具數據插入成功');
+        
+        // 只保留插入折扣碼的部分
+        db.run(`
           INSERT OR IGNORE INTO discount_codes (code, name, discount_type, discount_value, valid_from, valid_until) VALUES
           ('EarlyBird2526', '早鳥優惠 2025-2026', 'percentage', 20, '2024-01-01', '2025-08-31'),
           ('SnowPink2526', 'Snow Pink 合作優惠', 'percentage', 5, '2024-01-01', '2026-05-31'),
-          ('SSW2526', 'SSW 教練推薦', 'percentage', 5, '2024-01-01', '2026-05-31'),
-          ('SFS2526', 'SFS 學員專屬', 'percentage', 5, '2024-01-01', '2026-05-31')
-        `);
-
-        console.log('✅ 折扣碼表格建立完成');
-        resolve();
+          ('SSW2526', 'SSW 合作優惠', 'percentage', 5, '2024-01-01', '2026-05-31'),
+          ('SFS2526', 'SFS 專屬優惠', 'percentage', 5, '2024-01-01', '2026-05-31')
+        `, (err) => {
+          if (err) {
+            console.error('插入折扣碼失敗:', err);
+          } else {
+            console.log('✅ 折扣碼插入成功');
+          }
+          resolve();
+        });
       });
     });
   });
