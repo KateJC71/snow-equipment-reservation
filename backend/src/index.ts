@@ -23,6 +23,7 @@ import { googleSheetsService } from './services/googleSheets';
 import authRoutes from './routes/auth';
 import equipmentRoutes from './routes/equipment';
 import reservationRoutes from './routes/reservations';
+import discountRoutes from './routes/discount';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -49,6 +50,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/discount', discountRoutes);
 
 // 健康檢查
 app.get('/api/health', async (req, res) => {

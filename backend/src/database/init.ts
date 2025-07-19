@@ -194,6 +194,49 @@ async function initDatabase() {
           return;
         }
         console.log('✅ 示例雪具數據插入成功');
+        
+        // 建立折扣碼表格
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS discount_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+            discount_value REAL NOT NULL,
+            valid_from DATE,
+            valid_until DATE,
+            usage_limit INTEGER DEFAULT NULL,
+            used_count INTEGER DEFAULT 0,
+            active BOOLEAN DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // 建立預約折扣記錄表
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS reservation_discounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reservation_id INTEGER,
+            discount_code_id INTEGER,
+            original_amount REAL,
+            discount_amount REAL,
+            final_amount REAL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (reservation_id) REFERENCES reservations(id),
+            FOREIGN KEY (discount_code_id) REFERENCES discount_codes(id)
+          )
+        `);
+
+        // 插入你的自訂折扣碼
+        db.exec(`
+          INSERT OR IGNORE INTO discount_codes (code, name, discount_type, discount_value, valid_from, valid_until) VALUES
+          ('EarlyBird2526', '早鳥優惠 2025-2026', 'percentage', 20, '2024-01-01', '2025-08-31'),
+          ('SnowPink2526', 'Snow Pink 合作優惠', 'percentage', 5, '2024-01-01', '2026-05-31'),
+          ('SSW2526', 'SSW 教練推薦', 'percentage', 5, '2024-01-01', '2026-05-31'),
+          ('SFS2526', 'SFS 學員專屬', 'percentage', 5, '2024-01-01', '2026-05-31')
+        `);
+
+        console.log('✅ 折扣碼表格建立完成');
         resolve();
       });
     });
