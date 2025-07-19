@@ -43,6 +43,8 @@ interface ReservationData {
   reservation_number?: string;
   rentalDate: string;
   returnDate: string;
+  pickup_date?: string;
+  pickup_time?: string;
   pickupLocation: string;
   returnLocation: string;
   rentalDays: number;
