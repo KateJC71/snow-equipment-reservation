@@ -95,6 +95,51 @@ async function initDatabase() {
         console.log('✅ 雪具表創建成功');
       });
 
+      // 先創建折扣碼表格
+      db.run(`
+        CREATE TABLE IF NOT EXISTS discount_codes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          code TEXT UNIQUE NOT NULL,
+          name TEXT NOT NULL,
+          discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+          discount_value REAL NOT NULL,
+          valid_from DATE,
+          valid_until DATE,
+          usage_limit INTEGER DEFAULT NULL,
+          used_count INTEGER DEFAULT 0,
+          active BOOLEAN DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `, (err) => {
+        if (err) {
+          console.error('創建折扣碼表失敗:', err);
+          reject(err);
+          return;
+        }
+        console.log('✅ 折扣碼表創建成功');
+      });
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS reservation_discounts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          reservation_id INTEGER,
+          discount_code_id INTEGER,
+          original_amount REAL,
+          discount_amount REAL,
+          final_amount REAL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (reservation_id) REFERENCES reservations(id),
+          FOREIGN KEY (discount_code_id) REFERENCES discount_codes(id)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('創建預約折扣記錄表失敗:', err);
+          reject(err);
+          return;
+        }
+        console.log('✅ 預約折扣記錄表創建成功');
+      });
+
       db.run(createReservationsTable, (err) => {
         if (err) {
           console.error('創建預約表失敗:', err);
@@ -185,48 +230,7 @@ async function initDatabase() {
           }
         });
 
-        // 在所有 ALTER TABLE 完成後，加入折扣碼表格建立
-        db.run(`
-          CREATE TABLE IF NOT EXISTS discount_codes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            code TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
-            discount_value REAL NOT NULL,
-            valid_from DATE,
-            valid_until DATE,
-            usage_limit INTEGER DEFAULT NULL,
-            used_count INTEGER DEFAULT 0,
-            active BOOLEAN DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `, (err) => {
-          if (err) {
-            console.error('創建折扣碼表失敗:', err);
-          } else {
-            console.log('✅ 折扣碼表創建成功');
-          }
-        });
-
-        db.run(`
-          CREATE TABLE IF NOT EXISTS reservation_discounts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            reservation_id INTEGER,
-            discount_code_id INTEGER,
-            original_amount REAL,
-            discount_amount REAL,
-            final_amount REAL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (reservation_id) REFERENCES reservations(id),
-            FOREIGN KEY (discount_code_id) REFERENCES discount_codes(id)
-          )
-        `, (err) => {
-          if (err) {
-            console.error('創建預約折扣記錄表失敗:', err);
-          } else {
-            console.log('✅ 預約折扣記錄表創建成功');
-          }
-        });
+        // 折扣碼表格已在前面創建完成
       });
 
       // 插入示例數據
