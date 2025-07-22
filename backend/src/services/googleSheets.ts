@@ -53,6 +53,9 @@ interface ReservationData {
   totalEquipmentCost: number;
   locationChangeFee: number;
   totalAmount: number;
+  discountCode?: string;
+  discountAmount?: number;
+  originalAmount?: number;
 }
 
 class GoogleSheetsService {
@@ -226,6 +229,17 @@ class GoogleSheetsService {
 
     console.log('💰 Final total amount for Google Sheets:', totalAmount);
 
+    // 處理折扣碼資訊
+    const discountCode = frontendData.discountCode || reservationData.discount_code || '';
+    const discountAmount = frontendData.discountAmount || reservationData.discount_amount || 0;
+    const originalAmount = frontendData.originalPrice || reservationData.original_price || totalAmount;
+
+    console.log('🎟️ Discount info for Google Sheets:', {
+      discountCode,
+      discountAmount,
+      originalAmount
+    });
+
     return {
       reservation_number: reservationData.reservation_number, // 傳遞預約號碼
       rentalDate: reservationData.start_date,
@@ -239,7 +253,10 @@ class GoogleSheetsService {
       renters,
       totalEquipmentCost: totalAmount, // 使用前端計算的總金額
       locationChangeFee: 0, // 不再單獨計算
-      totalAmount: totalAmount
+      totalAmount: totalAmount,
+      discountCode: discountCode,
+      discountAmount: discountAmount,
+      originalAmount: originalAmount
     };
   }
 
