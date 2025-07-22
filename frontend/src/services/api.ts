@@ -113,6 +113,10 @@ export async function submitReservation(data: any) {
     notes: data.detail || '',
     // 使用前端計算的總金額
     total_price: data.price || 0,
+    // 折扣碼相關資訊
+    originalPrice: data.originalPrice || data.price || 0,
+    discountCode: data.discountCode || data.applicant?.discountCode || '',
+    discountAmount: data.discountAmount || 0,
     // 處理接送服務資料
     pickup_service: data.applicant?.shuttleMode === 'need',
     pickup_location: data.applicant?.shuttleMode === 'need' ? data.applicant?.shuttle?.join('、') || '' : '',
@@ -129,7 +133,12 @@ export async function submitReservation(data: any) {
     shoeSize: data.persons?.[0]?.shoeSize || 26
   };
 
-  console.log('📤 Sending to backend:', backendData);
+  console.log('📤 Sending to backend with discount info:', {
+    total_price: backendData.total_price,
+    originalPrice: backendData.originalPrice,
+    discountCode: backendData.discountCode,
+    discountAmount: backendData.discountAmount
+  });
 
   const res = await fetch(`${API_BASE_URL}/reservations`, {
     method: 'POST',

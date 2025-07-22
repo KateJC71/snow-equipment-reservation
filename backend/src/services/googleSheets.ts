@@ -41,6 +41,7 @@ interface ApplicantData {
 
 interface ReservationData {
   reservation_number?: string;
+  bookingDate?: string;
   rentalDate: string;
   returnDate: string;
   pickup_date?: string;
@@ -48,14 +49,14 @@ interface ReservationData {
   pickupLocation: string;
   returnLocation: string;
   rentalDays: number;
-  applicant: ApplicantData;
-  renters: RenterData[];
-  totalEquipmentCost: number;
-  locationChangeFee: number;
+  differentLocation?: boolean;
+  applicant?: any;
+  renters?: any[];
   totalAmount: number;
   discountCode?: string;
   discountAmount?: number;
   originalAmount?: number;
+  note?: string;
 }
 
 class GoogleSheetsService {
@@ -144,48 +145,22 @@ class GoogleSheetsService {
     reservationData: any, 
     frontendData: any, 
     equipmentData: any
-  ): ReservationData {
+  ) {
     // Calculate rental days (包含開始和結束日期)
     const startDate = new Date(reservationData.start_date);
     const endDate = new Date(reservationData.end_date);
     const rentalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    // Create applicant data from frontend
-    const applicant: ApplicantData = {
-      name: frontendData.applicant?.name || '',
-      phone: `${frontendData.applicant?.countryCode || ''} ${frontendData.applicant?.phone || ''}`.trim(),
-      email: frontendData.applicant?.email || '',
-      messagingApp: {
-        type: frontendData.applicant?.messenger || 'Email',
-        id: frontendData.applicant?.messengerId || frontendData.applicant?.email || ''
-      },
-      hotel: frontendData.applicant?.hotel || '',
-      transportation: {
-        required: frontendData.applicant?.shuttleMode === 'need',
-        details: frontendData.applicant?.shuttle || []
-      }
-    };
-
-    // Process all participants (up to 10)
-    const renters: RenterData[] = [];
+    // Process all participants (up to 10) for GAS format
+    const renters = [];
     const participants = frontendData.persons || [];
     const detailData = frontendData.detail || [];
     
     for (let i = 0; i < Math.min(participants.length, 10); i++) {
       const person = participants[i];
       const personDetail = detailData[i] || {};
-      
-      // Use actual prices from frontend calculation
-      const mainEquipmentPrice = personDetail.main || 0;
-      const helmetPrice = personDetail.helmet || 0;
-      const fasePrice = personDetail.fase || 0;
-      const clothingPrice = personDetail.clothing || 0;
-      const bootPrice = personDetail.boots || 0;
-      const crossPrice = personDetail.cross || 0;
-      
-      const subtotal = personDetail.subtotal || (mainEquipmentPrice + helmetPrice + fasePrice + clothingPrice + bootPrice + crossPrice);
 
-      const renter: RenterData = {
+      const renter = {
         name: person.name || `參加者${i + 1}`,
         age: person.age || 25,
         gender: person.gender || '未指定',
@@ -197,66 +172,63 @@ class GoogleSheetsService {
         boardType: person.boardType || '一般',
         equipmentType: person.equipType || '大全配',
         clothingOption: person.clothingType || '否',
-        helmet: person.helmetOnly === '是',
-        fase: person.fastWear === '是',
-        prices: {
-          mainEquipment: mainEquipmentPrice,
-          boots: bootPrice,
-          clothing: clothingPrice,
-          helmet: helmetPrice,
-          fase: fasePrice,
-          subtotal: subtotal
-        }
+        helmet: person.helmetOnly === '是' ? '是' : '否',
+        faseBoot: person.fastWear === '是' ? '是' : '否'
       };
       
       renters.push(renter);
     }
 
-    // 使用前端傳來的總金額，如果沒有則從詳細資料計算
+    // 使用前端傳來的總金額
     let totalAmount = reservationData.total_price || 0;
-    
-    // 如果總金額為 0，嘗試從前端詳細資料計算
-    if (totalAmount === 0 && frontendData.detail && Array.isArray(frontendData.detail)) {
-      totalAmount = frontendData.detail.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0);
-      console.log('🧮 Calculated total from detail:', totalAmount);
-    }
-    
-    // 如果還是 0，使用前端的 price 欄位
     if (totalAmount === 0 && frontendData.price) {
       totalAmount = frontendData.price;
-      console.log('🧮 Using frontend price:', totalAmount);
     }
-
-    console.log('💰 Final total amount for Google Sheets:', totalAmount);
 
     // 處理折扣碼資訊
     const discountCode = frontendData.discountCode || reservationData.discount_code || '';
     const discountAmount = frontendData.discountAmount || reservationData.discount_amount || 0;
     const originalAmount = frontendData.originalPrice || reservationData.original_price || totalAmount;
 
-    console.log('🎟️ Discount info for Google Sheets:', {
+    console.log('💰 Final amount for Google Sheets:', {
+      totalAmount,
+      originalAmount,
       discountCode,
-      discountAmount,
-      originalAmount
+      discountAmount
     });
 
+    // 返回符合 GAS 腳本期望的格式
     return {
-      reservation_number: reservationData.reservation_number, // 傳遞預約號碼
+      reservation_number: reservationData.reservation_number,
+      bookingDate: new Date().toISOString().split('T')[0], // 預約日期（今天）
       rentalDate: reservationData.start_date,
       returnDate: reservationData.end_date,
-      pickup_date: reservationData.pickup_date, // 加入取件日期
-      pickup_time: reservationData.pickup_time, // 加入取件時間
+      pickup_date: reservationData.pickup_date,
+      pickup_time: reservationData.pickup_time,
       pickupLocation: reservationData.pickupLocation || '富良野店',
       returnLocation: reservationData.returnLocation || '富良野店',
       rentalDays,
-      applicant,
+      differentLocation: (reservationData.pickupLocation || '富良野店') !== (reservationData.returnLocation || '富良野店'),
+      applicant: {
+        name: frontendData.applicant?.name || '',
+        phone: `${frontendData.applicant?.countryCode || ''} ${frontendData.applicant?.phone || ''}`.trim(),
+        email: frontendData.applicant?.email || '',
+        messagingApp: {
+          type: frontendData.applicant?.messenger || 'Email',
+          id: frontendData.applicant?.messengerId || frontendData.applicant?.email || ''
+        },
+        hotel: frontendData.applicant?.hotel || '',
+        transportation: {
+          required: frontendData.applicant?.shuttleMode === 'need',
+          details: frontendData.applicant?.shuttle || []
+        }
+      },
       renters,
-      totalEquipmentCost: totalAmount, // 使用前端計算的總金額
-      locationChangeFee: 0, // 不再單獨計算
-      totalAmount: totalAmount,
-      discountCode: discountCode,
+      totalAmount: totalAmount, // 這會對應到 GAS 腳本的 S 列
+      discountCode: discountCode, // 這會對應到 GAS 腳本的 R 列
       discountAmount: discountAmount,
-      originalAmount: originalAmount
+      originalAmount: originalAmount,
+      note: reservationData.notes || ''
     };
   }
 
