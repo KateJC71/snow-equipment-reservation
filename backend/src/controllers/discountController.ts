@@ -14,39 +14,65 @@ export const validateDiscountCode = (req: Request, res: Response) => {
   const db = new Database('./data/snow_reservation.db');
   console.log('📂 資料庫路徑:', './data/snow_reservation.db');
   
-  const query = `
-    SELECT * FROM discount_codes 
-    WHERE code = ? 
-    AND active = 1 
-    AND (valid_from IS NULL OR date('now') >= valid_from)
-    AND (valid_until IS NULL OR date('now') <= valid_until)
-    AND (usage_limit IS NULL OR used_count < usage_limit)
-  `;
-  
-  db.get(query, [code], (err, row: any) => {
+  // 先檢查表格是否存在和有資料
+  db.get('SELECT COUNT(*) as count FROM discount_codes', [], (err, countRow: any) => {
     if (err) {
-      console.error('折扣碼驗證錯誤:', err);
-      return res.status(500).json({ valid: false, message: '驗證失敗' });
+      console.error('❌ 檢查折扣碼表格失敗:', err);
+      db.close();
+      return res.status(500).json({ valid: false, message: '資料庫錯誤' });
     }
     
-    console.log('🔍 查詢結果:', row);
-    console.log('📅 當前日期 (date("now")):', new Date().toISOString().split('T')[0]);
+    console.log(`📊 折扣碼表格共有 ${countRow.count} 筆記錄`);
     
-    if (row) {
-      res.json({
-        valid: true,
-        discountType: row.discount_type,
-        discountValue: row.discount_value,
-        name: row.name,
-        message: `折扣碼有效！${row.discount_type === 'percentage' ? 
-          `享有 ${row.discount_value}% 折扣` : 
-          `減免 ¥${row.discount_value}`}`
-      });
-    } else {
-      res.json({ valid: false, message: '折扣碼無效或已過期' });
+    if (countRow.count === 0) {
+      console.error('⚠️  折扣碼表格為空，請檢查資料庫初始化');
+      db.close();
+      return res.json({ valid: false, message: '資料庫未初始化' });
     }
     
-    db.close();
+    const query = `
+      SELECT * FROM discount_codes 
+      WHERE code = ? 
+      AND active = 1 
+      AND (valid_from IS NULL OR date('now') >= valid_from)
+      AND (valid_until IS NULL OR date('now') <= valid_until)
+      AND (usage_limit IS NULL OR used_count < usage_limit)
+    `;
+    
+    db.get(query, [code], (err, row: any) => {
+      if (err) {
+        console.error('❌ 折扣碼驗證錯誤:', err);
+        db.close();
+        return res.status(500).json({ valid: false, message: '驗證失敗' });
+      }
+      
+      console.log('🔍 查詢結果:', row);
+      console.log('📅 當前日期 (date("now")):', new Date().toISOString().split('T')[0]);
+      
+      if (row) {
+        res.json({
+          valid: true,
+          discountType: row.discount_type,
+          discountValue: row.discount_value,
+          name: row.name,
+          message: `折扣碼有效！${row.discount_type === 'percentage' ? 
+            `享有 ${row.discount_value}% 折扣` : 
+            `減免 ¥${row.discount_value}`}`
+        });
+      } else {
+        // 額外檢查該 code 是否存在但不符合條件
+        db.get('SELECT * FROM discount_codes WHERE code = ?', [code], (err, existRow: any) => {
+          if (existRow) {
+            console.log('⚠️  折扣碼存在但不符合條件:', existRow);
+          } else {
+            console.log('❌ 折扣碼不存在');
+          }
+          res.json({ valid: false, message: '折扣碼無效或已過期' });
+        });
+      }
+      
+      db.close();
+    });
   });
 };
 

@@ -238,20 +238,30 @@ async function initDatabase() {
         }
         console.log('✅ 示例雪具數據插入成功');
         
-        // 只保留插入折扣碼的部分
+        // 插入折扣碼 - 只更新有效期，保持原折扣值
         db.run(`
-          INSERT OR IGNORE INTO discount_codes (code, name, discount_type, discount_value, valid_from, valid_until) VALUES
-          ('EarlyBird2526', '早鳥優惠 2025-2026', 'percentage', 20, '2024-01-01', '2025-08-31'),
-          ('SnowPink2526', 'Snow Pink 合作優惠', 'percentage', 5, '2024-01-01', '2026-05-31'),
-          ('SSW2526', 'SSW 合作優惠', 'percentage', 5, '2024-01-01', '2026-05-31'),
-          ('SFS2526', 'SFS 專屬優惠', 'percentage', 5, '2024-01-01', '2026-05-31')
+          INSERT OR REPLACE INTO discount_codes (code, name, discount_type, discount_value, valid_from, valid_until, active) VALUES
+          ('EarlyBird2526', '早鳥優惠 2025-2026', 'percentage', 20, '2024-01-01', '2027-12-31', 1),
+          ('SnowPink2526', 'Snow Pink 合作優惠', 'percentage', 5, '2024-01-01', '2027-12-31', 1),
+          ('SFSZ526', 'SFSZ 專屬優惠', 'percentage', 5, '2024-01-01', '2027-12-31', 1),
+          ('SFS2526', 'SFS 專屬優惠', 'percentage', 5, '2024-01-01', '2027-12-31', 1)
         `, (err) => {
           if (err) {
-            console.error('插入折扣碼失敗:', err);
+            console.error('❌ 插入折扣碼失敗:', err);
+            reject(err);
           } else {
             console.log('✅ 折扣碼插入成功');
+            
+            // 驗證插入結果
+            db.get('SELECT COUNT(*) as count FROM discount_codes', [], (err, row: any) => {
+              if (err) {
+                console.error('❌ 驗證折扣碼失敗:', err);
+              } else {
+                console.log(`📊 折扣碼表格共有 ${row.count} 筆記錄`);
+              }
+              resolve();
+            });
           }
-          resolve();
         });
       });
     });
