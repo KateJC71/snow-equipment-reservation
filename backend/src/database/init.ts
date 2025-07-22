@@ -75,6 +75,15 @@ INSERT OR IGNORE INTO equipment (name, category, size, condition, daily_rate, to
 
 async function initDatabase() {
   return new Promise<void>((resolve, reject) => {
+    // 先刪除並重新創建折扣碼表格以確保乾淨的狀態
+    db.run('DROP TABLE IF EXISTS discount_codes', (err) => {
+      if (err) {
+        console.log('⚠️  刪除舊折扣碼表格失敗（可能不存在）:', err.message);
+      } else {
+        console.log('🗑️  已清除舊折扣碼表格');
+      }
+    });
+    
     db.serialize(() => {
       // 創建表
       db.run(createUsersTable, (err) => {
