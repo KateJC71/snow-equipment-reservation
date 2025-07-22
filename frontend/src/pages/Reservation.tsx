@@ -298,6 +298,22 @@ const Reservation: React.FC = () => {
     calcPrice();
   }, [persons, startDate, endDate, rentStore, returnStore]);
 
+  // 在組件卸載時清理事件監聽器
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // 如果已經提交成功（在第5步），清除localStorage
+      if (step === 5) {
+        localStorage.removeItem('reservationFormData');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [step]);
+
   // 動態調整人數
   const handlePeopleChange = (val: number) => {
     setPeople(val);
@@ -540,6 +556,42 @@ const Reservation: React.FC = () => {
   const handlePrev = () => setStep(step - 1);
 
   // 送出預約（這裡僅顯示總價，實際可串接API）
+  // 重置所有表單狀態
+  const resetFormData = () => {
+    setStep(1);
+    setAgreedToTerms(false);
+    setStartDate('');
+    setEndDate('');
+    setPeople(1);
+    setPersons([{ ...initialPerson }]);
+    setError('');
+    setPrice(0);
+    setDetail([]);
+    setRentStore('');
+    setReturnStore('');
+    setPickupDate('');
+    setPickupTime('');
+    setReservationResponse(null);
+    setDiscountStatus(null);
+    setDiscountAmount(0);
+    setOriginalPrice(0);
+    setDiscountInfo(null);
+    setApplicant({
+      name: '',
+      countryCode: '+81',
+      phone: '',
+      email: '',
+      messenger: '',
+      messengerId: '',
+      hotel: '',
+      shuttle: [],
+      shuttleMode: 'none',
+      discountCode: '',
+    });
+    // 清除 localStorage 中的表單數據
+    localStorage.removeItem('reservationFormData');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -561,8 +613,6 @@ const Reservation: React.FC = () => {
       };
       const response = await submitReservation(payload);
       setReservationResponse(response);
-      // 清除 localStorage 中的表單數據
-      localStorage.removeItem('reservationFormData');
       setStep(5);
     } catch (err) {
       setError('送出失敗，請稍後再試');
@@ -1012,6 +1062,7 @@ const Reservation: React.FC = () => {
               
               <button
                 onClick={() => {
+                  resetFormData();
                   navigate('/');
                 }}
                 className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
