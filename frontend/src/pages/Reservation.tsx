@@ -349,6 +349,9 @@ const Reservation: React.FC = () => {
     
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     
+    console.log('🔍 驗證折扣碼:', code);
+    console.log('📡 API URL:', `${API_BASE_URL}/discount/validate`);
+    
     try {
       const response = await fetch(`${API_BASE_URL}/discount/validate`, {
         method: 'POST',
@@ -356,7 +359,9 @@ const Reservation: React.FC = () => {
         body: JSON.stringify({ code }),
       });
       
+      console.log('📥 Response status:', response.status);
       const result = await response.json();
+      console.log('📦 Response data:', result);
       
       if (result.valid) {
         setDiscountStatus({
@@ -549,6 +554,9 @@ const Reservation: React.FC = () => {
         pickupDate,
         pickupTime,
         price,
+        originalPrice,
+        discountCode: applicant.discountCode || '',
+        discountAmount: discountAmount || 0,
         detail,
       };
       const response = await submitReservation(payload);
@@ -1043,7 +1051,7 @@ const Reservation: React.FC = () => {
       </div>
       {step === 4 && detail.length > 0 && (
         <div className="mt-6 text-right text-lg font-bold">
-          合計總金額：¥ {detail.reduce((sum, p) => sum + (p.subtotal || 0), 0)}
+          合計總金額：¥ {price}
         </div>
       )}
     </div>

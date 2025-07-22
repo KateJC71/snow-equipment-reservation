@@ -4,6 +4,7 @@ import { db } from '../database/init';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { googleSheetsService } from '../services/googleSheets';
 import { generateUniqueReservationNumber } from '../utils/reservationNumber';
+import { recordDiscountUsage } from '../controllers/discountController';
 
 interface Equipment {
   id: number;
@@ -65,6 +66,9 @@ router.post('/', [
     user_email, 
     user_phone, 
     total_price,
+    originalPrice,
+    discountCode,
+    discountAmount,
     pickup_service,
     pickup_location,
     return_location,
@@ -104,8 +108,55 @@ router.post('/', [
     // 移除庫存檢查 - 允許無限預約
     // 移除日期衝突檢查 - 允許同一天多個預約
 
-    // 使用前端傳來的總金額，不重新計算
-    const finalTotalPrice = total_price || equipment.daily_rate * Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    // 驗證折扣碼（如果有）
+    let validatedDiscountAmount = 0;
+    let finalTotalPrice = total_price;
+    
+    if (discountCode) {
+      console.log('🎟️ Validating discount code:', discountCode);
+      
+      // 查詢折扣碼
+      const discountQuery = `
+        SELECT * FROM discount_codes 
+        WHERE code = ? 
+        AND active = 1 
+        AND (valid_from IS NULL OR date('now') >= valid_from)
+        AND (valid_until IS NULL OR date('now') <= valid_until)
+        AND (usage_limit IS NULL OR used_count < usage_limit)
+      `;
+      
+      const discountRow: any = await new Promise((resolve, reject) => {
+        db.get(discountQuery, [discountCode], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+      
+      if (discountRow) {
+        // 計算折扣金額
+        const basePrice = originalPrice || total_price;
+        if (discountRow.discount_type === 'percentage') {
+          validatedDiscountAmount = Math.round(basePrice * (discountRow.discount_value / 100));
+        } else {
+          validatedDiscountAmount = Math.min(discountRow.discount_value, basePrice);
+        }
+        
+        // 驗證前端傳來的折扣金額是否正確
+        if (Math.abs(validatedDiscountAmount - discountAmount) > 1) {
+          console.error('❌ Discount amount mismatch:', { client: discountAmount, server: validatedDiscountAmount });
+          return res.status(400).json({ message: '折扣金額計算錯誤' });
+        }
+        
+        finalTotalPrice = basePrice - validatedDiscountAmount;
+        console.log('✅ Discount validated:', { code: discountCode, amount: validatedDiscountAmount, final: finalTotalPrice });
+      } else {
+        console.error('❌ Invalid discount code:', discountCode);
+        return res.status(400).json({ message: '折扣碼無效或已過期' });
+      }
+    } else {
+      // 沒有折扣碼，使用原始價格
+      finalTotalPrice = total_price || equipment.daily_rate * Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    }
 
     // 處理接送服務資料
     const finalPickupService = pickup_service || false;
@@ -187,6 +238,23 @@ router.post('/', [
 
       // 移除庫存更新 - 不再減少可用數量
 
+      // 記錄折扣碼使用（如果有）
+      if (discountCode && validatedDiscountAmount > 0) {
+        try {
+          await recordDiscountUsage(
+            reservationId,
+            discountCode,
+            originalPrice || finalTotalPrice + validatedDiscountAmount,
+            validatedDiscountAmount,
+            finalTotalPrice
+          );
+          console.log('✅ Discount usage recorded for reservation:', reservationId);
+        } catch (error) {
+          console.error('❌ Failed to record discount usage:', error);
+          // 不影響預約創建，繼續執行
+        }
+      }
+
       // 發送資料到 Google Sheets (異步，不影響回應)
       try {
         // 使用完整的前端資料 (支援多人預約)
@@ -217,6 +285,9 @@ router.post('/', [
             pickup_date,
             pickup_time,
             total_price: finalTotalPrice,
+            original_price: originalPrice || finalTotalPrice + validatedDiscountAmount,
+            discount_code: discountCode || '',
+            discount_amount: validatedDiscountAmount,
             notes,
             pickupLocation: req.body.pickupLocation || '富良野店',
             returnLocation: req.body.returnLocation || '富良野店'
@@ -241,7 +312,10 @@ router.post('/', [
         message: '預約創建成功',
         reservation_id: reservationId,
         reservation_number: reservationNumber,
-        total_price: finalTotalPrice
+        total_price: finalTotalPrice,
+        original_price: originalPrice || finalTotalPrice + validatedDiscountAmount,
+        discount_code: discountCode || '',
+        discount_amount: validatedDiscountAmount
       });
     });
   });

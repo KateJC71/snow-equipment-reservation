@@ -5,11 +5,14 @@ import { Database } from 'sqlite3';
 export const validateDiscountCode = (req: Request, res: Response) => {
   const { code } = req.body;
   
+  console.log('🎟️ 收到折扣碼驗證請求:', code);
+  
   if (!code) {
     return res.json({ valid: false, message: '請輸入折扣碼' });
   }
   
   const db = new Database('./data/snow_reservation.db');
+  console.log('📂 資料庫路徑:', './data/snow_reservation.db');
   
   const query = `
     SELECT * FROM discount_codes 
@@ -25,6 +28,9 @@ export const validateDiscountCode = (req: Request, res: Response) => {
       console.error('折扣碼驗證錯誤:', err);
       return res.status(500).json({ valid: false, message: '驗證失敗' });
     }
+    
+    console.log('🔍 查詢結果:', row);
+    console.log('📅 當前日期 (date("now")):', new Date().toISOString().split('T')[0]);
     
     if (row) {
       res.json({
