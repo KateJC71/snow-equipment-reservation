@@ -93,13 +93,16 @@ class GoogleSheetsService {
       console.log('📊 Sending reservation data to Google Sheets...');
       
       console.log('📤 Sending data to Google Sheets URL:', this.gasUrl);
-      console.log('📦 Data being sent:', JSON.stringify(reservationData, null, 2));
-      console.log('🔍 Data type check:');
-      console.log('  - applicant exists:', !!reservationData.applicant);
-      console.log('  - applicant.name:', reservationData.applicant?.name);
-      console.log('  - rentalDate:', reservationData.rentalDate);
-      console.log('  - returnDate:', reservationData.returnDate);
-      console.log('  - pickupLocation:', reservationData.pickupLocation);
+      console.log('📦 Complete data being sent:', JSON.stringify(reservationData, null, 2));
+      
+      // Debug field mapping
+      console.log('🔍 Field mapping check:');
+      console.log('  - reservation_number:', reservationData.reservation_number);
+      console.log('  - bookingDate:', reservationData.bookingDate);
+      console.log('  - discountCode:', reservationData.discountCode);
+      console.log('  - totalAmount:', reservationData.totalAmount);
+      console.log('  - applicant structure:', reservationData.applicant);
+      console.log('  - renters count:', reservationData.renters?.length || 0);
       
       const response = await axios.post(
         this.gasUrl,
@@ -197,7 +200,7 @@ class GoogleSheetsService {
       discountAmount
     });
 
-    // 返回符合 GAS 腳本期望的格式
+    // 返回完全符合 GAS 腳本期望的扁平化格式
     return {
       reservation_number: reservationData.reservation_number,
       bookingDate: new Date().toISOString().split('T')[0], // 預約日期（今天）
@@ -209,6 +212,7 @@ class GoogleSheetsService {
       returnLocation: reservationData.returnLocation || '富良野店',
       rentalDays,
       differentLocation: (reservationData.pickupLocation || '富良野店') !== (reservationData.returnLocation || '富良野店'),
+      // 扁平化申請人資料以匹配 GAS 腳本
       applicant: {
         name: frontendData.applicant?.name || '',
         phone: `${frontendData.applicant?.countryCode || ''} ${frontendData.applicant?.phone || ''}`.trim(),
@@ -224,8 +228,8 @@ class GoogleSheetsService {
         }
       },
       renters,
-      totalAmount: totalAmount, // 這會對應到 GAS 腳本的 S 列
-      discountCode: discountCode, // 這會對應到 GAS 腳本的 R 列
+      totalAmount: totalAmount, // S列: 總金額
+      discountCode: discountCode, // R列: 折扣碼
       discountAmount: discountAmount,
       originalAmount: originalAmount,
       note: reservationData.notes || ''
