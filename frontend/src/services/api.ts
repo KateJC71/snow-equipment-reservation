@@ -96,6 +96,12 @@ export const reservationAPI = {
 
 export async function submitReservation(data: any) {
   console.log('🚀 Frontend submitting data:', data);
+  console.log('🔍 Frontend discount info check:', {
+    discountCode: data.discountCode,
+    discountAmount: data.discountAmount,
+    originalPrice: data.originalPrice,
+    applicantDiscountCode: data.applicant?.discountCode
+  });
   
   // Transform frontend data to backend format
   const backendData = {
@@ -139,6 +145,8 @@ export async function submitReservation(data: any) {
     discountCode: backendData.discountCode,
     discountAmount: backendData.discountAmount
   });
+  
+  console.log('📦 Complete backend data being sent:', JSON.stringify(backendData, null, 2));
 
   const res = await fetch(`${API_BASE_URL}/reservations`, {
     method: 'POST',
