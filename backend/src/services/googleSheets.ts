@@ -228,10 +228,12 @@ class GoogleSheetsService {
         }
       },
       renters,
-      totalAmount: totalAmount, // S列: 總金額
-      discountCode: discountCode, // R列: 折扣碼
-      discountAmount: discountAmount,
-      originalAmount: originalAmount,
+      // 確保這兩個欄位的順序和名稱正確
+      discountCode: discountCode || '', // R列: 折扣碼（確保不是 undefined）
+      totalAmount: totalAmount,         // S列: 總金額
+      // 這些欄位不需要傳給 Google Sheets，已移除
+      // discountAmount: discountAmount,
+      // originalAmount: originalAmount,
       note: reservationData.notes || ''
     };
   }
